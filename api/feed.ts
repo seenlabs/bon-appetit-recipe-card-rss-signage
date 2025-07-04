@@ -1,60 +1,113 @@
-import { VercelRequest, VercelResponse } from '@vercel/node';
 import { XMLParser } from 'fast-xml-parser';
-import fetch from 'node-fetch';
+
+interface RecipeItem {
+  title: string;
+  image: string;
+  description: string;
+  link: string;
+  pubDate: string;
+}
+
+interface RSSItem {
+  title?: string;
+  description?: string;
+  link?: string;
+  pubDate?: string;
+  enclosure?: {
+    '@_url'?: string;
+  };
+  'media:thumbnail'?: {
+    '@_url'?: string;
+    '@_width'?: string;
+    '@_height'?: string;
+  };
+  'media:content'?: Array<{
+    '@_url'?: string;
+    '@_width'?: string;
+  }> | {
+    '@_url'?: string;
+    '@_width'?: string;
+  };
+}
+
+interface MediaContent {
+  '@_url'?: string;
+  '@_width'?: string;
+}
+
+let cache: {
+  data: RecipeItem[];
+  timestamp: number;
+} | null = null;
 
 const DEFAULT_FEED_URL = 'https://www.bonappetit.com/feed/rss';
 const DEFAULT_CACHE_MINUTES = 15;
 const DEFAULT_MAX_ITEMS = 20;
 
-let cache: {
-  data: any[];
-  timestamp: number;
-} | null = null;
-
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const feedUrl = (req.query.feed as string) || DEFAULT_FEED_URL;
-  const limit = parseInt((req.query.limit as string) || DEFAULT_MAX_ITEMS.toString());
+export default async function handler(req: Request) {
+  const url = new URL(req.url);
+  const feedUrl = url.searchParams.get('feed') || DEFAULT_FEED_URL;
+  const limit = parseInt(url.searchParams.get('limit') || DEFAULT_MAX_ITEMS.toString());
+  
   const cacheMinutes = DEFAULT_CACHE_MINUTES;
   const now = Date.now();
-
+  
   // Check cache
   if (cache && (now - cache.timestamp) < (cacheMinutes * 60 * 1000)) {
-    return res.status(200).json(cache.data.slice(0, limit));
+    return new Response(JSON.stringify(cache.data.slice(0, limit)), {
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 
   try {
+    console.log(`Fetching RSS feed: ${feedUrl}`);
     const response = await fetch(feedUrl);
     const xmlText = await response.text();
+    
     const parser = new XMLParser({
       ignoreAttributes: false,
       attributeNamePrefix: '@_'
     });
+    
     const parsed = parser.parse(xmlText);
     const items = parsed.rss?.channel?.item || [];
-    const recipes = items.map((item: any) => {
+    
+    const recipes: RecipeItem[] = items.map((item: RSSItem) => {
       // Extract image from media:thumbnail, media:content, or enclosure
       let image = '';
+      
+      // Try media:thumbnail first (what Bon Appétit uses)
       if (item['media:thumbnail']?.['@_url']) {
         image = item['media:thumbnail']['@_url'];
-      } else if (item['media:content']) {
-        const mediaContent = Array.isArray(item['media:content'])
-          ? item['media:content']
+      }
+      // Fallback to media:content
+      else if (item['media:content']) {
+        const mediaContent = Array.isArray(item['media:content']) 
+          ? item['media:content'] 
           : [item['media:content']];
-        const wideImage = mediaContent.find((media: any) =>
+        
+        // Prefer 1280-wide images
+        const wideImage = mediaContent.find((media: MediaContent) => 
           media['@_width'] === '1280' || media['@_url']?.includes('1280')
         );
+        
         if (wideImage) {
           image = wideImage['@_url'] || '';
         } else if (mediaContent[0]?.['@_url']) {
           image = mediaContent[0]['@_url'];
         }
       }
+      
+      // Fallback to enclosure or other image sources
       if (!image && item.enclosure?.['@_url']) {
         image = item.enclosure['@_url'];
       }
+      
+      // Clean description - strip HTML and truncate
       let description = item.description || '';
-      description = description.replace(/<[^>]*>/g, '');
+      description = description.replace(/<[^>]*>/g, ''); // Remove HTML tags
       description = description.length > 160 ? description.substring(0, 160) + '...' : description;
+      
       return {
         title: item.title || 'Untitled Recipe',
         image: image || '/placeholder-recipe.jpg',
@@ -62,17 +115,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         link: item.link || '#',
         pubDate: item.pubDate || new Date().toISOString()
       };
-    }).filter((recipe: any) => recipe.title && recipe.image);
+    }).filter((recipe: RecipeItem) => recipe.title && recipe.image);
+
     // Update cache
     cache = {
       data: recipes.slice(0, DEFAULT_MAX_ITEMS),
       timestamp: now
     };
-    return res.status(200).json(recipes.slice(0, limit));
+    
+    console.log(`Successfully parsed ${recipes.length} recipes`);
+    
+    return new Response(JSON.stringify(recipes.slice(0, limit)), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
   } catch (error) {
+    console.error('Error fetching RSS feed:', error);
+    
+    // Return cached data if available
     if (cache) {
-      return res.status(200).json(cache.data.slice(0, limit));
+      return new Response(JSON.stringify(cache.data.slice(0, limit)), {
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
-    return res.status(500).json({ error: 'Failed to fetch RSS feed' });
+    
+    return new Response(JSON.stringify({ error: 'Failed to fetch RSS feed' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 } 
