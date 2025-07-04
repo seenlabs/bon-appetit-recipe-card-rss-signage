@@ -1,73 +1,67 @@
-# Welcome to your Lovable project
+# Bon Appétit Recipe Card RSS Signage
 
-## Project info
+Transform any RSS feed into stunning digital signage for Enplug displays. This app auto-rotates recipe cards with beautiful typography, seamless content management, and a professional display.
 
-**URL**: https://lovable.dev/projects/84a6f234-6955-4ebb-bf80-d2a06ec51b20
+## Main Entry Points
 
-## How can I edit this code?
+- **Digital Signage Solution:** [seenlabs.com](https://seenlabs.com) — Use this as your main page for managing and displaying your digital signage content.
+- **Dashboard Access:** [dashboard.enplug.com](https://dashboard.enplug.com) — Use this to access the Enplug dashboard for configuration and management.
 
-There are several ways of editing your application.
+## Features & Capabilities
 
-**Use Lovable**
+- **RSS Integration**: Automatically pulls from Bon Appétit's RSS feed (or any custom feed) with smart image extraction and content caching for reliable display.
+- **Easy Configuration**: Intuitive dashboard with live preview, custom RSS feeds, rotation timing, and maximum item controls.
+- **Beautiful Display**: Full-screen hero images, elegant typography, smooth transitions, and responsive design for any screen size.
+- **Enplug Integration**: Built for Enplug's CMS platform with professional digital signage support.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/84a6f234-6955-4ebb-bf80-d2a06ec51b20) and start prompting.
+## Dashboard Features
+- Custom RSS feed URL configuration
+- Adjustable rotation timing (5-60 seconds)
+- Maximum items limit control
+- Live preview with iframe integration
 
-Changes made via Lovable will be committed automatically to this repo.
+## Player Features
+- Full-screen recipe card display
+- Automatic content rotation
+- Offline mode with cached content
+- Keyboard navigation in preview mode
 
-**Use your preferred IDE**
+## Getting Started
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Prerequisites
+- Node.js & npm installed ([install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating))
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+### Installation & Development
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
+# Clone the repository
 git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
 cd <YOUR_PROJECT_NAME>
 
-# Step 3: Install the necessary dependencies.
-npm i
+# Install dependencies
+npm install
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Start the API server (for development)
+npm run dev:api
+
+# In a separate terminal, start the main app
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Open your browser to the local server URL (usually http://localhost:8080) to view the app.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
+## Technologies Used
 - Vite
 - TypeScript
 - React
 - shadcn-ui
 - Tailwind CSS
+- Express (for local API dev server)
 
-## How can I deploy this project?
+## Deployment
 
-Simply open [Lovable](https://lovable.dev/projects/84a6f234-6955-4ebb-bf80-d2a06ec51b20) and click on Share -> Publish.
+Deploy as a static site or integrate with Enplug's CMS as needed.
 
-## Can I connect a custom domain to my Lovable project?
+---
 
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+Built with React, TypeScript, and Tailwind CSS for Enplug digital signage platforms.

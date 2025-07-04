@@ -1,16 +1,5 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Wifi, WifiOff } from 'lucide-react';
-
-declare global {
-  interface Window {
-    enplug: {
-      assets: {
-        get: () => Promise<any>;
-      };
-    };
-  }
-}
 
 interface Recipe {
   title: string;
@@ -24,6 +13,11 @@ interface PlayerConfig {
   feedUrl?: string;
   rotateSeconds?: number;
   maxItems?: number;
+}
+
+interface EnplugAsset {
+  data?: PlayerConfig;
+  updatedAt?: string;
 }
 
 const Player = () => {

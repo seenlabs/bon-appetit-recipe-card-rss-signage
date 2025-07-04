@@ -1,10 +1,20 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Settings, Save, Eye } from 'lucide-react';
+
+interface DashboardConfig {
+  feedUrl: string;
+  rotateSeconds: number;
+  maxItems: number;
+}
+
+interface EnplugAsset {
+  data?: DashboardConfig;
+  updatedAt?: string;
+}
 
 declare global {
   interface Window {
@@ -13,22 +23,16 @@ declare global {
         pageLoading: (loading: boolean) => void;
       };
       assets: {
-        createOrUpdate: (data: any) => Promise<void>;
-        get: () => Promise<any>;
+        createOrUpdate: (asset: EnplugAsset) => Promise<void>;
+        get: () => Promise<EnplugAsset>;
       };
     };
   }
 }
 
-interface DashboardConfig {
-  feedUrl: string;
-  rotateSeconds: number;
-  maxItems: number;
-}
-
 const Dashboard = () => {
   const [config, setConfig] = useState<DashboardConfig>({
-    feedUrl: 'https://www.bonappetit.com/feed/latest',
+    feedUrl: 'https://www.bonappetit.com/feed/rss',
     rotateSeconds: 10,
     maxItems: 20
   });
@@ -121,11 +125,11 @@ const Dashboard = () => {
                   type="url"
                   value={config.feedUrl}
                   onChange={(e) => setConfig(prev => ({ ...prev, feedUrl: e.target.value }))}
-                  placeholder="https://www.bonappetit.com/feed/latest"
+                  placeholder="https://www.bonappetit.com/feed/rss"
                   className="w-full"
                 />
                 <p className="text-xs text-gray-500">
-                  Any valid RSS feed URL (defaults to Bon Appétit Latest)
+                  Any valid RSS feed URL (defaults to Bon Appétit RSS)
                 </p>
               </div>
 
