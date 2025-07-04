@@ -1,50 +1,35 @@
-import { XMLParser } from 'fast-xml-parser';
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+const { XMLParser } = require('fast-xml-parser');
 
-interface RecipeItem {
-  title: string;
-  image: string;
-  description: string;
-  link: string;
-  pubDate: string;
-}
+const app = express();
+const PORT = process.env.PORT || 3001;
 
-let cache: {
-  data: RecipeItem[];
-  timestamp: number;
-} | null = null;
+// Middleware
+app.use(cors());
+app.use(express.json());
 
+// Serve static files from the React app
+app.use(express.static(path.join(__dirname, 'dist')));
+
+// Cache for RSS data
+let cache = null;
 const DEFAULT_FEED_URL = 'https://www.bonappetit.com/feed/rss';
 const DEFAULT_CACHE_MINUTES = 15;
 const DEFAULT_MAX_ITEMS = 20;
 
-export default async function handler(req: Request) {
-  // Handle CORS
-  if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-      },
-    });
-  }
-
-  const url = new URL(req.url);
-  const feedUrl = url.searchParams.get('feed') || DEFAULT_FEED_URL;
-  const limit = parseInt(url.searchParams.get('limit') || DEFAULT_MAX_ITEMS.toString());
+// API endpoint for RSS feed
+app.get('/api/feed', async (req, res) => {
+  const feedUrl = req.query.feed || DEFAULT_FEED_URL;
+  const limit = parseInt(req.query.limit || DEFAULT_MAX_ITEMS.toString());
   
   const cacheMinutes = DEFAULT_CACHE_MINUTES;
   const now = Date.now();
   
   // Check cache
   if (cache && (now - cache.timestamp) < (cacheMinutes * 60 * 1000)) {
-    return new Response(JSON.stringify(cache.data.slice(0, limit)), {
-      headers: { 
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      }
-    });
+    return res.json(cache.data.slice(0, limit));
   }
 
   try {
@@ -60,7 +45,7 @@ export default async function handler(req: Request) {
     const parsed = parser.parse(xmlText);
     const items = parsed.rss?.channel?.item || [];
     
-    const recipes: RecipeItem[] = items.map((item: any) => {
+    const recipes = items.map((item) => {
       // Extract image from media:thumbnail, media:content, or enclosure
       let image = '';
       
@@ -75,7 +60,7 @@ export default async function handler(req: Request) {
           : [item['media:content']];
         
         // Prefer 1280-wide images
-        const wideImage = mediaContent.find((media: any) => 
+        const wideImage = mediaContent.find((media) => 
           media['@_width'] === '1280' || media['@_url']?.includes('1280')
         );
         
@@ -103,7 +88,7 @@ export default async function handler(req: Request) {
         link: item.link || '#',
         pubDate: item.pubDate || new Date().toISOString()
       };
-    }).filter((recipe: RecipeItem) => recipe.title && recipe.image);
+    }).filter((recipe) => recipe.title && recipe.image);
 
     // Update cache
     cache = {
@@ -113,32 +98,33 @@ export default async function handler(req: Request) {
     
     console.log(`Successfully parsed ${recipes.length} recipes`);
     
-    return new Response(JSON.stringify(recipes.slice(0, limit)), {
-      headers: { 
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      }
-    });
+    res.json(recipes.slice(0, limit));
     
   } catch (error) {
     console.error('Error fetching RSS feed:', error);
     
     // Return cached data if available
     if (cache) {
-      return new Response(JSON.stringify(cache.data.slice(0, limit)), {
-        headers: { 
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        }
-      });
+      return res.json(cache.data.slice(0, limit));
     }
     
-    return new Response(JSON.stringify({ error: 'Failed to fetch RSS feed' }), {
-      status: 500,
-      headers: { 
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      }
-    });
+    res.status(500).json({ error: 'Failed to fetch RSS feed' });
   }
-}
+});
+
+// Test API endpoint
+app.get('/api/test', (req, res) => {
+  res.json({
+    message: 'API is working on Render!',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Handle React routing, return all requests to React app
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+}); 

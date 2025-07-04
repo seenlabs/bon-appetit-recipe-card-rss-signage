@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "dev:api": "node dev-server.cjs",
+    "start": "node server.js",
     "build": "tsc && vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",

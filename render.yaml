@@ -1,0 +1,24 @@
+services:
+  # Static Site (Frontend)
+  - type: web
+    name: bon-appetit-recipe-frontend
+    runtime: static
+    buildCommand: npm run build
+    staticPublishPath: ./dist
+    routes:
+      - type: rewrite
+        source: /api/*
+        destination: https://bon-appetit-recipe-api.onrender.com/api/*
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+  # API Service
+  - type: web
+    name: bon-appetit-recipe-api
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm run dev:api
+    envVars:
+      - key: NODE_ENV
+        value: production 
