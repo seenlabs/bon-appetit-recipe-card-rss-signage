@@ -6,8 +6,6 @@ interface RecipeItem {
   pubDate: string;
 }
 
-export const runtime = 'edge';
-
 let cache: {
   data: RecipeItem[];
   timestamp: number;
