@@ -1,4 +1,5 @@
 import { XMLParser } from 'fast-xml-parser';
+import { writeFile, readFile } from 'fs/promises';
 
 interface RecipeItem {
   title: string;
@@ -13,9 +14,11 @@ let cache: {
   timestamp: number;
 } | null = null;
 
-const DEFAULT_FEED_URL = 'https://www.bonappetit.com/feed/rss';
-const DEFAULT_CACHE_MINUTES = 15;
-const DEFAULT_MAX_ITEMS = 20;
+// Defaults come from environment variables with sensible fallbacks
+const DEFAULT_FEED_URL =
+  process.env.FEED_URL || 'https://www.bonappetit.com/feed/latest';
+const DEFAULT_CACHE_MINUTES = parseInt(process.env.CACHE_MINUTES || '15');
+const DEFAULT_MAX_ITEMS = parseInt(process.env.MAX_ITEMS || '20');
 
 export default async function handler(req: Request) {
   // Handle CORS
@@ -59,8 +62,10 @@ export default async function handler(req: Request) {
     
     const parsed = parser.parse(xmlText);
     const items = parsed.rss?.channel?.item || [];
-    
-    const recipes: RecipeItem[] = items.map((item: any) => {
+
+    type RSSItem = Record<string, unknown>;
+
+    const recipes: RecipeItem[] = (items as RSSItem[]).map((item) => {
       // Extract image from media:thumbnail, media:content, or enclosure
       let image = '';
       
@@ -70,13 +75,14 @@ export default async function handler(req: Request) {
       }
       // Fallback to media:content
       else if (item['media:content']) {
-        const mediaContent = Array.isArray(item['media:content']) 
-          ? item['media:content'] 
-          : [item['media:content']];
+        const mediaContent = Array.isArray(item['media:content'])
+          ? (item['media:content'] as RSSItem[])
+          : [item['media:content'] as RSSItem];
         
         // Prefer 1280-wide images
-        const wideImage = mediaContent.find((media: any) => 
-          media['@_width'] === '1280' || media['@_url']?.includes('1280')
+        const wideImage = mediaContent.find((media) =>
+          (media as RSSItem)['@_width'] === '1280' ||
+          String((media as RSSItem)['@_url'] ?? '').includes('1280')
         );
         
         if (wideImage) {
@@ -105,11 +111,12 @@ export default async function handler(req: Request) {
       };
     }).filter((recipe: RecipeItem) => recipe.title && recipe.image);
 
-    // Update cache
+    // Update in-memory cache and persist to /tmp
     cache = {
       data: recipes.slice(0, DEFAULT_MAX_ITEMS),
       timestamp: now
     };
+    await writeFile('/tmp/last.json', JSON.stringify(cache.data), 'utf-8');
     
     console.log(`Successfully parsed ${recipes.length} recipes`);
     
@@ -123,22 +130,35 @@ export default async function handler(req: Request) {
   } catch (error) {
     console.error('Error fetching RSS feed:', error);
     
-    // Return cached data if available
+    // Return cached in-memory data if available
     if (cache) {
       return new Response(JSON.stringify(cache.data.slice(0, limit)), {
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*'
         }
       });
     }
-    
-    return new Response(JSON.stringify({ error: 'Failed to fetch RSS feed' }), {
-      status: 500,
-      headers: { 
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      }
-    });
+
+    // Try last-good payload from disk
+    try {
+      const last = await readFile('/tmp/last.json', 'utf-8');
+      const data: RecipeItem[] = JSON.parse(last);
+      return new Response(JSON.stringify(data.slice(0, limit)), {
+        status: 503,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+    } catch {
+      return new Response(JSON.stringify({ error: 'Failed to fetch RSS feed' }), {
+        status: 503,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+    }
   }
-} 
+}
