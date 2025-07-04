@@ -33,9 +33,11 @@ const Player = () => {
 
   // Helper to get the correct API endpoint
   const getApiUrl = () => {
-    if (window.location.hostname.endsWith('seenlabs.com')) {
-      return 'https://bon-appetit-recipe-card-rss-signage.seenlabs.com/api/feed';
+    // In development, use the local API server
+    if (import.meta.env.DEV) {
+      return '/api/feed';
     }
+    // In production, use the Vercel API endpoint
     return '/api/feed';
   };
 

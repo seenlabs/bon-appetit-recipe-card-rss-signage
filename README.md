@@ -2,11 +2,6 @@
 
 Transform any RSS feed into stunning digital signage for Enplug displays. This app auto-rotates recipe cards with beautiful typography, seamless content management, and a professional display.
 
-## Main Entry Points
-
-- **Digital Signage Solution:** [seenlabs.com](https://seenlabs.com) — Use this as your main page for managing and displaying your digital signage content.
-- **Dashboard Access:** [dashboard.enplug.com](https://dashboard.enplug.com) — Use this to access the Enplug dashboard for configuration and management.
-
 ## Features & Capabilities
 
 - **RSS Integration**: Automatically pulls from Bon Appétit's RSS feed (or any custom feed) with smart image extraction and content caching for reliable display.
@@ -36,7 +31,7 @@ Transform any RSS feed into stunning digital signage for Enplug displays. This a
 ```sh
 # Clone the repository
 git clone <YOUR_GIT_URL>
-cd <YOUR_PROJECT_NAME>
+cd bon-appetit-recipe-card-rss-signage
 
 # Install dependencies
 npm install
@@ -50,6 +45,16 @@ npm run dev
 
 Open your browser to the local server URL (usually http://localhost:8080) to view the app.
 
+### Building for Production
+
+```sh
+# Build the project
+npm run build
+
+# Preview the production build
+npm run preview
+```
+
 ## Technologies Used
 - Vite
 - TypeScript
@@ -60,7 +65,7 @@ Open your browser to the local server URL (usually http://localhost:8080) to vie
 
 ## Deployment
 
-Deploy as a static site or integrate with Enplug's CMS as needed.
+This project is configured for deployment on Vercel with serverless API functions. The API automatically handles RSS feed fetching and caching in production.
 
 ---
 
