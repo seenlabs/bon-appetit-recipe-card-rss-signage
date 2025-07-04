@@ -31,10 +31,18 @@ const Player = () => {
   const rotateSeconds = config.rotateSeconds || 10;
   const maxItems = config.maxItems || 20;
 
+  // Helper to get the correct API endpoint
+  const getApiUrl = () => {
+    if (window.location.hostname.endsWith('seenlabs.com')) {
+      return 'https://bon-appetit-recipe-card-rss-signage.seenlabs.com/api/feed';
+    }
+    return '/api/feed';
+  };
+
   // Fetch recipes from API
   const fetchRecipes = useCallback(async () => {
     try {
-      const url = new URL('/api/feed', window.location.origin);
+      const url = new URL(getApiUrl());
       if (config.feedUrl) {
         url.searchParams.set('feed', config.feedUrl);
       }
