@@ -17,6 +17,12 @@ app.use(express.json());
 // Serve static files from the React app
 app.use(express.static(path.join(__dirname, 'dist')));
 
+// Serve assets with proper caching
+app.use('/assets', express.static(path.join(__dirname, 'dist', 'assets'), {
+  maxAge: '1y',
+  etag: true
+}));
+
 // Cache for RSS data
 let cache = null;
 const DEFAULT_FEED_URL = 'https://www.bonappetit.com/feed/rss';
