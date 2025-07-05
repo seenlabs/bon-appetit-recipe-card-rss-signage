@@ -37,8 +37,8 @@ const Player = () => {
     if (import.meta.env.DEV) {
       return '/api/feed';
     }
-    // In production, use the Render API endpoint
-    return 'https://bon-appetit-recipe-api.onrender.com/api/feed';
+    // In production, use the same Render service for both frontend and API
+    return '/api/feed';
   };
 
   // Fetch recipes from API
