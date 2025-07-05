@@ -123,7 +123,7 @@ const Player = () => {
     if (!loading) {
       fetchRecipes();
     }
-  }, [loading, fetchRecipes]);
+  }, [loading, config, fetchRecipes]);
 
   // Auto-rotation
   useEffect(() => {
