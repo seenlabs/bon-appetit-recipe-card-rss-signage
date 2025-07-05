@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Wifi, WifiOff } from 'lucide-react';
+import HomeButton from '@/components/HomeButton';
 
 interface Recipe {
   title: string;
@@ -33,56 +34,38 @@ const Player = () => {
 
   // Helper to get the correct API endpoint
   const getApiUrl = () => {
-    // In development, use the local API server
-    if (import.meta.env.DEV) {
-      return '/api/feed';
-    }
-    // In production, use the same Render service for both frontend and API
-    return '/api/feed';
+    // Always return an absolute URL
+    return `${window.location.origin}/api/feed`;
   };
 
   // Fetch recipes from API
   const fetchRecipes = useCallback(async () => {
     try {
       const url = new URL(getApiUrl());
-      if (config.feedUrl) {
-        url.searchParams.set('feed', config.feedUrl);
-      }
+      const feedUrl = config.feedUrl || 'https://www.bonappetit.com/feed/rss';
       const limit = config.maxItems || 20;
+      
+      url.searchParams.set('feed', feedUrl);
       url.searchParams.set('limit', limit.toString());
 
+      console.log('Fetching recipes from:', url.toString());
       const response = await fetch(url.toString());
       const data = await response.json();
+      
+      console.log('Received data:', data?.length || 0, 'recipes');
       
       if (Array.isArray(data) && data.length > 0) {
         setRecipes(data);
         setOffline(false);
-        // Cache in localStorage
-        try {
-          localStorage.setItem('recipes-cache', JSON.stringify({
-            data,
-            timestamp: Date.now()
-          }));
-        } catch (cacheError) {
-          console.error('Error saving to cache:', cacheError);
-          // Cache might be full, try to clear old data
-          try {
-            localStorage.removeItem('recipes-cache');
-            localStorage.setItem('recipes-cache', JSON.stringify({
-              data,
-              timestamp: Date.now()
-            }));
-          } catch (retryError) {
-            console.error('Failed to save cache after retry:', retryError);
-          }
-        }
+        // Cache the data
+        localStorage.setItem('recipes-cache', JSON.stringify({ data, timestamp: Date.now() }));
       } else {
         throw new Error('No recipes found');
       }
     } catch (error) {
       console.error('Error fetching recipes:', error);
       
-      // Try to load from cache
+      // Try to load from cache as fallback
       try {
         const cached = localStorage.getItem('recipes-cache');
         if (cached) {
@@ -94,11 +77,9 @@ const Player = () => {
         }
       } catch (cacheError) {
         console.error('Error loading from cache:', cacheError);
-        // Clear corrupted cache
-        localStorage.removeItem('recipes-cache');
       }
     }
-  }, [config]);
+  }, [config.feedUrl, config.maxItems]);
 
   // Load Enplug Player SDK and configuration
   useEffect(() => {
@@ -108,14 +89,37 @@ const Player = () => {
 
     // Override config from URL params for preview
     if (preview) {
-      setConfig({
-        feedUrl: urlParams.get('feed') || undefined,
-        rotateSeconds: parseInt(urlParams.get('rotate') || '10'),
-        maxItems: parseInt(urlParams.get('max') || '20')
-      });
+      // First try to load from localStorage (saved configuration)
+      let savedConfig: PlayerConfig = {};
+      try {
+        const savedConfigStr = localStorage.getItem('bon-appetit-config');
+        if (savedConfigStr) {
+          savedConfig = JSON.parse(savedConfigStr);
+        }
+      } catch (error) {
+        console.error('Error loading saved config:', error);
+      }
+
+      // Merge saved config with URL params (saved config takes precedence)
+      const finalConfig = {
+        feedUrl: savedConfig.feedUrl || urlParams.get('feed') || 'https://www.bonappetit.com/feed/rss',
+        rotateSeconds: savedConfig.rotateSeconds || parseInt(urlParams.get('rotate') || '') || 10,
+        maxItems: savedConfig.maxItems || parseInt(urlParams.get('max') || '') || 20
+      };
+      
+      setConfig(finalConfig);
       setLoading(false);
       return;
     }
+
+    // For non-preview mode, set default config if no Enplug SDK
+    const defaultConfig = {
+      feedUrl: 'https://www.bonappetit.com/feed/rss',
+      rotateSeconds: 10,
+      maxItems: 20
+    };
+    setConfig(defaultConfig);
+    setLoading(false);
 
     // Load Enplug Player SDK
     const script = document.createElement('script');
@@ -126,10 +130,8 @@ const Player = () => {
         if (asset?.data) {
           setConfig(asset.data);
         }
-        setLoading(false);
       } catch (error) {
         console.error('Error loading Enplug asset:', error);
-        setLoading(false);
       }
     };
     document.head.appendChild(script);
@@ -141,12 +143,12 @@ const Player = () => {
     };
   }, []);
 
-  // Fetch recipes when config changes
+  // Fetch recipes when config is ready
   useEffect(() => {
     if (!loading) {
       fetchRecipes();
     }
-  }, [loading, config, fetchRecipes]);
+  }, [loading, config.feedUrl, config.maxItems]);
 
   // Auto-rotation
   useEffect(() => {
@@ -202,6 +204,7 @@ const Player = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-orange-500 mx-auto mb-4"></div>
           <p className="text-xl">Loading delicious recipes...</p>
+          <p className="text-sm text-gray-400 mt-2">Config: {JSON.stringify(config)}</p>
         </div>
       </div>
     );
@@ -212,7 +215,18 @@ const Player = () => {
       <div className="h-screen flex items-center justify-center bg-black text-white">
         <div className="text-center">
           <p className="text-2xl mb-4">No recipes available</p>
-          <p className="text-gray-400">Check your RSS feed configuration</p>
+          <p className="text-gray-400 mb-4">Check your RSS feed configuration</p>
+          <div className="text-sm text-gray-500">
+            <p>Config: {JSON.stringify(config)}</p>
+            <p>Loading: {loading.toString()}</p>
+            <p>Recipes count: {recipes.length}</p>
+          </div>
+          <button 
+            onClick={() => fetchRecipes()}
+            className="mt-4 px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600"
+          >
+            Retry Fetch
+          </button>
         </div>
       </div>
     );
@@ -222,6 +236,9 @@ const Player = () => {
 
   return (
     <div className="h-screen relative overflow-hidden bg-black">
+      {/* Home Button - Only show in preview mode */}
+      {isPreview && <HomeButton />}
+      
       {/* Background Image */}
       <div 
         className="absolute inset-0 bg-cover bg-center transition-all duration-1000 ease-in-out"
