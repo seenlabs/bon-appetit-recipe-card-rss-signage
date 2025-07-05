@@ -8,6 +8,21 @@ interface RecipeItem {
   pubDate: string;
 }
 
+interface RSSItem {
+  title?: string;
+  description?: string;
+  link?: string;
+  pubDate?: string;
+  'media:thumbnail'?: { '@_url'?: string };
+  'media:content'?: Array<{ '@_url'?: string; '@_width'?: string }> | { '@_url'?: string; '@_width'?: string };
+  enclosure?: { '@_url'?: string };
+}
+
+interface MediaContent {
+  '@_url'?: string;
+  '@_width'?: string;
+}
+
 let cache: {
   data: RecipeItem[];
   timestamp: number;
@@ -60,7 +75,7 @@ export default async function handler(req: Request) {
     const parsed = parser.parse(xmlText);
     const items = parsed.rss?.channel?.item || [];
     
-    const recipes: RecipeItem[] = items.map((item: any) => {
+    const recipes: RecipeItem[] = items.map((item: RSSItem) => {
       // Extract image from media:thumbnail, media:content, or enclosure
       let image = '';
       
@@ -75,7 +90,7 @@ export default async function handler(req: Request) {
           : [item['media:content']];
         
         // Prefer 1280-wide images
-        const wideImage = mediaContent.find((media: any) => 
+        const wideImage = mediaContent.find((media: MediaContent) => 
           media['@_width'] === '1280' || media['@_url']?.includes('1280')
         );
         

@@ -58,10 +58,24 @@ const Player = () => {
         setRecipes(data);
         setOffline(false);
         // Cache in localStorage
-        localStorage.setItem('recipes-cache', JSON.stringify({
-          data,
-          timestamp: Date.now()
-        }));
+        try {
+          localStorage.setItem('recipes-cache', JSON.stringify({
+            data,
+            timestamp: Date.now()
+          }));
+        } catch (cacheError) {
+          console.error('Error saving to cache:', cacheError);
+          // Cache might be full, try to clear old data
+          try {
+            localStorage.removeItem('recipes-cache');
+            localStorage.setItem('recipes-cache', JSON.stringify({
+              data,
+              timestamp: Date.now()
+            }));
+          } catch (retryError) {
+            console.error('Failed to save cache after retry:', retryError);
+          }
+        }
       } else {
         throw new Error('No recipes found');
       }
@@ -69,11 +83,19 @@ const Player = () => {
       console.error('Error fetching recipes:', error);
       
       // Try to load from cache
-      const cached = localStorage.getItem('recipes-cache');
-      if (cached) {
-        const { data } = JSON.parse(cached);
-        setRecipes(data);
-        setOffline(true);
+      try {
+        const cached = localStorage.getItem('recipes-cache');
+        if (cached) {
+          const { data } = JSON.parse(cached);
+          if (Array.isArray(data) && data.length > 0) {
+            setRecipes(data);
+            setOffline(true);
+          }
+        }
+      } catch (cacheError) {
+        console.error('Error loading from cache:', cacheError);
+        // Clear corrupted cache
+        localStorage.removeItem('recipes-cache');
       }
     }
   }, [config]);
@@ -153,16 +175,25 @@ const Player = () => {
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [isPreview, recipes.length]);
 
-  // Refresh data on focus regain
+  // Refresh data on focus regain (debounced)
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
     const handleVisibilityChange = () => {
       if (!document.hidden) {
-        fetchRecipes();
+        // Debounce the fetch to avoid multiple rapid calls
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+          fetchRecipes();
+        }, 1000);
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearTimeout(timeoutId);
+    };
   }, [fetchRecipes]);
 
   if (loading) {
