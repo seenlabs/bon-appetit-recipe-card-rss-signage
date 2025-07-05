@@ -48,7 +48,8 @@ const Player = () => {
       if (config.feedUrl) {
         url.searchParams.set('feed', config.feedUrl);
       }
-      url.searchParams.set('limit', maxItems.toString());
+      const limit = config.maxItems || 20;
+      url.searchParams.set('limit', limit.toString());
 
       const response = await fetch(url.toString());
       const data = await response.json();
@@ -75,7 +76,7 @@ const Player = () => {
         setOffline(true);
       }
     }
-  }, [config.feedUrl, maxItems]);
+  }, [config]);
 
   // Load Enplug Player SDK and configuration
   useEffect(() => {
