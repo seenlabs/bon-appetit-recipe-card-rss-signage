@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Settings, Save, Eye } from 'lucide-react';
+import { Settings, Save, Eye, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react';
 import HomeButton from '@/components/HomeButton';
 
 interface DashboardConfig {
@@ -19,7 +19,7 @@ interface EnplugAsset {
 
 declare global {
   interface Window {
-    enplug: {
+    enplug?: {
       dashboard: {
         pageLoading: (loading: boolean) => void;
       };
@@ -39,45 +39,86 @@ const Dashboard = () => {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [isEnplugEnvironment, setIsEnplugEnvironment] = useState(false);
 
   useEffect(() => {
-    // Load Enplug Dashboard SDK
-    const script = document.createElement('script');
-    script.src = 'https://apps.enplug.com/sdk/v1/dashboard.js';
-    script.onload = async () => {
-      try {
-        window.enplug.dashboard.pageLoading(true);
-        
-        // Try to load existing config
-        const existingAsset = await window.enplug.assets.get();
-        if (existingAsset?.data) {
-          setConfig(prev => ({ ...prev, ...existingAsset.data }));
+    // Check if we're in Enplug environment
+    const checkEnplugEnvironment = () => {
+      const hasEnplug = typeof window !== 'undefined' && window.enplug;
+      setIsEnplugEnvironment(!!hasEnplug);
+      
+      if (hasEnplug) {
+        // Load Enplug Dashboard SDK
+        const script = document.createElement('script');
+        script.src = 'https://apps.enplug.com/sdk/v1/dashboard.js';
+        script.onload = async () => {
+          try {
+            window.enplug!.dashboard.pageLoading(true);
+            
+            // Try to load existing config
+            const existingAsset = await window.enplug!.assets.get();
+            if (existingAsset?.data) {
+              setConfig(prev => ({ ...prev, ...existingAsset.data }));
+            }
+            
+            setLoading(false);
+            window.enplug!.dashboard.pageLoading(false);
+          } catch (error) {
+            console.error('Error loading Enplug SDK:', error);
+            setLoading(false);
+          }
+        };
+        document.head.appendChild(script);
+      } else {
+        // Load from localStorage for local development
+        try {
+          const savedConfig = localStorage.getItem('bon-appetit-config');
+          if (savedConfig) {
+            const parsedConfig = JSON.parse(savedConfig);
+            setConfig(prev => ({ ...prev, ...parsedConfig }));
+          }
+        } catch (error) {
+          console.error('Error loading from localStorage:', error);
         }
-        
-        setLoading(false);
-        window.enplug.dashboard.pageLoading(false);
-      } catch (error) {
-        console.error('Error loading Enplug SDK:', error);
         setLoading(false);
       }
     };
-    document.head.appendChild(script);
 
-    return () => {
-      document.head.removeChild(script);
-    };
+    checkEnplugEnvironment();
   }, []);
+
+  // Auto-save config to localStorage in local mode
+  React.useEffect(() => {
+    if (!isEnplugEnvironment && !loading) {
+      localStorage.setItem('bon-appetit-config', JSON.stringify(config));
+    }
+  }, [config, isEnplugEnvironment, loading]);
 
   const handleSave = async () => {
     setSaving(true);
+    setSaveStatus('idle');
+    
     try {
-      await window.enplug.assets.createOrUpdate({
-        data: config,
-        updatedAt: new Date().toISOString()
-      });
-      console.log('Configuration saved successfully');
+      if (isEnplugEnvironment && window.enplug) {
+        // Save to Enplug
+        await window.enplug.assets.createOrUpdate({
+          data: config,
+          updatedAt: new Date().toISOString()
+        });
+        console.log('Configuration saved to Enplug successfully');
+      } else {
+        // Save to localStorage for local development
+        localStorage.setItem('bon-appetit-config', JSON.stringify(config));
+        console.log('Configuration saved to localStorage successfully');
+      }
+      
+      setSaveStatus('success');
+      setTimeout(() => setSaveStatus('idle'), 3000); // Clear success message after 3 seconds
     } catch (error) {
       console.error('Error saving configuration:', error);
+      setSaveStatus('error');
+      setTimeout(() => setSaveStatus('idle'), 5000); // Clear error message after 5 seconds
     } finally {
       setSaving(false);
     }
@@ -90,7 +131,7 @@ const Dashboard = () => {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-red-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading Enplug Dashboard...</p>
+          <p className="text-gray-600">Loading Dashboard...</p>
         </div>
       </div>
     );
@@ -106,6 +147,13 @@ const Dashboard = () => {
             Bon Appétit Recipe Signage
           </h1>
           <p className="text-gray-600">Configure your digital recipe display</p>
+          {!isEnplugEnvironment && (
+            <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg inline-block">
+              <p className="text-sm text-blue-700">
+                🖥️ Running in local mode - configuration will be saved to browser storage
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -167,6 +215,21 @@ const Dashboard = () => {
                 </div>
               </div>
 
+              {/* Save Status Messages */}
+              {saveStatus === 'success' && (
+                <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <CheckCircle className="text-green-500" size={16} />
+                  <span className="text-sm text-green-700">Configuration saved successfully!</span>
+                </div>
+              )}
+              
+              {saveStatus === 'error' && (
+                <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <AlertCircle className="text-red-500" size={16} />
+                  <span className="text-sm text-red-700">Failed to save configuration. Please try again.</span>
+                </div>
+              )}
+
               <Button 
                 onClick={handleSave}
                 disabled={saving}
@@ -198,13 +261,28 @@ const Dashboard = () => {
             <CardContent className="p-0">
               <div className="aspect-video bg-black rounded-b-lg overflow-hidden">
                 <iframe
+                  key={`${config.feedUrl}-${config.rotateSeconds}-${config.maxItems}`}
                   src={previewUrl}
                   className="w-full h-full border-0"
                   title="Recipe Display Preview"
                 />
               </div>
-              <div className="p-4 bg-gray-50 text-xs text-gray-600 rounded-b-lg">
-                Preview URL: <code className="bg-white px-2 py-1 rounded">{previewUrl}</code>
+              <div className="p-4 bg-gray-50 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-600">Preview URL:</span>
+                  <Button
+                    onClick={() => window.open(previewUrl, '_blank')}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs bg-white hover:bg-gray-50"
+                  >
+                    <ExternalLink size={12} className="mr-1" />
+                    Full Preview
+                  </Button>
+                </div>
+                <code className="block bg-white px-2 py-1 rounded text-xs text-gray-600 break-all">
+                  {previewUrl}
+                </code>
               </div>
             </CardContent>
           </Card>
