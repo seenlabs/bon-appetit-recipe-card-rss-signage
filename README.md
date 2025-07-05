@@ -49,55 +49,8 @@ Open your browser to the local server URL (usually http://localhost:8080) to vie
 
 ```sh
 # Build the project
-npm run build
+npm install && npm run build
 
 # Preview the production build
 npm run preview
 ```
-
-## Deployment on Render
-
-This project is configured for deployment on Render with both static hosting and API services.
-
-### Quick Deploy
-
-1. **Fork this repository** to your GitHub account
-2. **Connect to Render**:
-   - Go to [render.com](https://render.com)
-   - Click "New +" → "Blueprint"
-   - Connect your GitHub account
-   - Select this repository
-3. **Deploy**: Render will automatically detect the `render.yaml` configuration and deploy both services
-
-### Manual Deployment
-
-#### Frontend (Static Site)
-1. Create a new **Static Site** on Render
-2. Connect your GitHub repository
-3. Set build command: `npm run build`
-4. Set publish directory: `dist`
-
-#### API Service
-1. Create a new **Web Service** on Render
-2. Connect your GitHub repository
-3. Set build command: `npm install`
-4. Set start command: `npm start`
-5. Set environment variable: `NODE_ENV=production`
-
-## Technologies Used
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-- Express (for API server)
-- Render (for hosting)
-
-## API Endpoints
-
-- `GET /api/feed` - Fetch RSS feed data
-- `GET /api/test` - Test API endpoint
-
----
-
-Built with React, TypeScript, and Tailwind CSS for Enplug digital signage platforms.
